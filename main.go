@@ -42,7 +42,7 @@ func fixStoke(inStream io.Reader, outStream io.Writer) error {
 
 	scanner := bufio.NewScanner(inStream)
 	for scanner.Scan() {
-		line := re.ReplaceAllString(scanner.Text(), `stroke-width=s".3"`)
+		line := re.ReplaceAllString(scanner.Text(), `stroke-width=".3"`)
 		_, err := outStream.Write([]byte(line + "\n"))
 		if err != nil {
 			return fmt.Errorf("error writing to outStream - %w", err)
