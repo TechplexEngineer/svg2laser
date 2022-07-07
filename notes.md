@@ -1,6 +1,14 @@
+svg2laser
+=========
+
+## Goal
+Streamline hte process of cutting FRC Robotics prototypes designed in Onshape on an Epilog Helix 18"x24" laser cutter.
 
 
-1. Possible sources:
+This repo contains a number of tests and ideas, but nothing works great yet.
+
+## Data flow
+1. Possible sources (Suppored via Onshape export):
     - PDF
     - DWG -- obscure format
     - DXF -- obscure format
@@ -18,3 +26,9 @@ inkscape input.svg --export-filename=output.ps
 
 4. Send postscript through epilog postprocessor
 liblasercut
+
+
+## Inspiration
+- LibLaserCut
+- Lathser
+- ctrl-cut
