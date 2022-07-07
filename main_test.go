@@ -2,14 +2,17 @@ package main
 
 import (
 	"encoding/xml"
+	"github.com/llgcode/draw2d/draw2dimg"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
 
 import (
 	"aqwari.net/xml/xmltree"
+	"github.com/llgcode/ps"
 	"github.com/matryer/is"
 )
 
@@ -173,4 +176,21 @@ func Test_fixStoke(t *testing.T) {
 	//		}
 	//	})
 	//}
+}
+
+func Test_ps_2_draw2d(t *testing.T) {
+	is := is.New(t)
+
+	src, err := os.OpenFile("samples/ps/Drill Drawer Drawings 1.ps", 0, 0)
+	is.NoErr(err)
+	defer src.Close()
+
+	bytes, err := ioutil.ReadAll(src)
+	reader := strings.NewReader(string(bytes))
+
+	gfxCtx := draw2dimg.NewGraphicContext()
+	interpreter := ps.NewInterpreter(gfxCtx)
+	interpreter.Execute(reader)
+	//saveToPngFile("result/TestPostscript.png", i)
+
 }
