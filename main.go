@@ -103,6 +103,11 @@ func main() {
 				return
 			}
 			w.Header().Add("Content-Type", "application/pdf")
+			action := "attachment" //attachment means download immediately,
+			if request.FormValue("action") == "preview" {
+				action = "inline" //inline means show in page
+			}
+			w.Header().Add("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, action, filepath.Base(outFilePath)))
 			_, _ = w.Write(readFile)
 			//@todo don't use the filesystem
 
