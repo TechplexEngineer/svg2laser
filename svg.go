@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 )
@@ -37,6 +38,7 @@ func mustParseFloat(input string) float64 {
 }
 
 const MILIMETERS_PER_INCH = 25.4
+const float64EqualityThreshold = 1e-3
 
 func (a SVGAttrs) getResolutionPxPerIn() (int, error) {
 
@@ -87,8 +89,8 @@ func (a SVGAttrs) getResolutionPxPerIn() (int, error) {
 	}
 	widthPxPerInch := float64(widthPx) / widthIn
 	heightPxPerInch := float64(heightPx) / heightIn
-	if widthPxPerInch != heightPxPerInch {
-		return 0, fmt.Errorf("width and height pixels per inch do not match. width: %f height %f", widthPxPerInch, heightPxPerInch)
+	if math.Abs(widthPxPerInch-heightPxPerInch) > float64EqualityThreshold {
+		return 0, fmt.Errorf("width and height pixels per inch do not match. width: %f height %f, %.15f", widthPxPerInch, heightPxPerInch, math.Abs(widthPxPerInch-heightPxPerInch))
 	}
 
 	return int(widthPxPerInch), nil

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prepare SVG for Laser Cutting with Epilog Lasers</title>
+    <link rel="stylesheet" href="https://unpkg.com/awsm.css@3.0.7/dist/awsm.min.css" integrity="TiZr8Ie+2EUxWQV+mD232IBRp/nVyIZr4go5DtHfegZdYPrUAN1OeYtoZJu717Um">
+
+
+</head>
+<body>
+<header>
+    <h1>Convert <code>.svg</code> to <code>.pdf</code></h1>
+    <p>
+        Prepare SVG for Laser Cutting with Epilog Lasers.
+    </p>
+    <p>&nbsp;</p>
+    <ul>
+        <li>Start with SVG</li>
+        <li>Convert all strokes to .001"</li>
+        <li>Uses Inkscape to convert SVG to PDF ready for cutting</li>
+    </ul>
+
+</header>
+<main>
+    <form method="post" enctype=multipart/form-data action="/upload">
+        <label for="file">Upload your file</label>
+        <input type="file" name="file" id="file" accept="image/svg+xml">
+        <input type="submit" value="Upload">
+    </form>
+</main>
+<footer>
+    <p>Made by <a href="https://techplexlabs.com/" target="_blank">@techplex</a> - Sources on <a
+            href="https://github.com/TechplexEngineer/svg2laser">GitHub</a></p>
+</footer>
+</body>
+</html>
