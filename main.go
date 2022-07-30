@@ -13,11 +13,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 import (
@@ -48,68 +46,37 @@ func main() {
 
 			// The argument to FormFile must match the name attribute
 			// of the file input on the frontend
-			file, fileHeader, err := request.FormFile("file")
+			uploadedFile, fileHeader, err := request.FormFile("file")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			defer file.Close()
+			defer uploadedFile.Close()
 
-			requestId := time.Now().UnixNano()
-
-			uploadDir := path.Join("./uploads", fmt.Sprintf("%d", requestId))
-
-			// Create the uploads folder if it doesn't
-			// already exist
-			err = os.MkdirAll(uploadDir, os.ModePerm)
+			svgReadyForCutting := bytes.Buffer{}
+			err = fixStoke(uploadedFile, &svgReadyForCutting, .001)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			inFilePath := path.Join(uploadDir, filepath.Base(fileHeader.Filename))
-
-			// Create a new file in the uploads directory
-			dst, err := os.Create(inFilePath)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer dst.Close()
-			outStream := bytes.Buffer{}
-			err = fixStoke(file, &outStream, .001)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-			// Copy the uploaded file to the filesystem
-			// at the specified destination
-			_, err = io.Copy(dst, &outStream)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
 			fileWithoutSuffix := strings.TrimSuffix(filepath.Base(fileHeader.Filename), filepath.Ext(fileHeader.Filename))
-			outFilePath := path.Join(uploadDir, fileWithoutSuffix+".pdf")
-			log.Printf("converting '%s' to '%s'", inFilePath, outFilePath)
-			err = svgConvert(outFilePath, inFilePath)
+
+			pdfReadyForCutting := bytes.Buffer{}
+			err = svgConvertBuffer(svgReadyForCutting.Bytes(), &pdfReadyForCutting, os.Stderr)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			readFile, err := ioutil.ReadFile(outFilePath)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+
 			w.Header().Add("Content-Type", "application/pdf")
-			action := "attachment" //attachment means download immediately,
+			action := "attachment" //attachment means download immediately
 			if request.FormValue("action") == "preview" {
 				action = "inline" //inline means show in page
 			}
-			w.Header().Add("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, action, filepath.Base(outFilePath)))
-			_, _ = w.Write(readFile)
-			//@todo don't use the filesystem
+
+			w.Header().Add("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, action, fileWithoutSuffix+".pdf"))
+			_, _ = w.Write(pdfReadyForCutting.Bytes())
 
 		}).Methods(http.MethodPost)
 

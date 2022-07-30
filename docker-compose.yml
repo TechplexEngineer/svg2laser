@@ -1,0 +1,7 @@
+version: '3.3'
+services:
+    worker:
+        ports:
+            - '8090:8080'
+        build:
+            context: .
