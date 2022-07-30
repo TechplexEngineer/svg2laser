@@ -1,18 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
-	"github.com/llgcode/draw2d/draw2dimg"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"testing"
 )
 
 import (
 	"aqwari.net/xml/xmltree"
-	"github.com/llgcode/ps"
 	"github.com/matryer/is"
 )
 
@@ -65,7 +64,7 @@ func (u *UnparsedTags) GetContentByName(name string) string {
 	return ((map[string]string)(*u))[name]
 }
 
-func Test_ted(t *testing.T) {
+func Test_customDecoder(t *testing.T) {
 	is := is.New(t)
 
 	f, err := os.Open("./samples/drill_drawer_2/Drill_Drawer_Drawings_2.svg")
@@ -81,6 +80,25 @@ func Test_ted(t *testing.T) {
 	log.Printf("%#v", elements)
 }
 
+func TestGetResolution(t *testing.T) {
+
+	attrs := SVGAttrs{
+		width:   "457.2mm",
+		height:  "457.2mm",
+		viewbox: "0 0 5400 5400",
+	}
+	attrs.getResolutionPxPerIn()
+}
+
+//func Contains[T comparable](s []T, e T) bool {
+//	for _, v := range s {
+//		if v == e {
+//			return true
+//		}
+//	}
+//	return false
+//}
+
 func Test_xmltree(t *testing.T) {
 	is := is.New(t)
 
@@ -90,14 +108,51 @@ func Test_xmltree(t *testing.T) {
 	rootEle, err := xmltree.Parse(file)
 	is.NoErr(err)
 
-	//indent, err := json.MarshalIndent(tree, "", "    ")
+	//indent, err := json.MarshalIndent(rootEle, "", "    ")
 	//is.NoErr(err)
-
+	//
 	//log.Printf("tree: %s", indent) // this might work!!! Ignore content
 
-	DFS(rootEle, func(ele *xmltree.Element) {
+	toJson := func(ele interface{}) string {
+		indent, err := json.MarshalIndent(ele, "", "    ")
+		is.NoErr(err)
+		return string(indent)
+	}
+	_ = toJson
 
+	//width := -1
+	//height := -1
+	//log.Printf("StartElement %#v", rootEle.StartElement)
+	if rootEle.StartElement.Name.Local != "svg" {
+		return // fmt.Errorf("root element is not svg")
+	}
+	attrs := SVGAttrs{
+		width:   rootEle.Attr("", "width"),
+		height:  rootEle.Attr("", "height"),
+		viewbox: rootEle.Attr("", "viewBox"),
+	}
+	//log.Printf("%s", toJson(rootEle.StartElement.Attr))
+	resPxPerIn, err := attrs.getResolutionPxPerIn()
+	is.NoErr(err)
+	//log.Printf("%v", resPxPerIn)
+
+	desiredStrokeWidthIn := .001
+	desiredStrokeWidthSVGUnits := desiredStrokeWidthIn * float64(resPxPerIn)
+	//log.Printf("%f", desiredStrokeWidthSVGUnits)
+
+	elementsNeedChanges := rootEle.SearchFunc(func(ele *xmltree.Element) bool {
+		for _, attr := range ele.StartElement.Attr {
+			if attr.Name.Local == "stroke-width" {
+				return true
+			}
+		}
+		return false
 	})
+	for _, ele := range elementsNeedChanges {
+		ele.SetAttr("", "stroke-width", fmt.Sprintf("%.3f", desiredStrokeWidthSVGUnits))
+	}
+
+	log.Printf("%s", rootEle)
 }
 
 func Test_DFS(t *testing.T) {
@@ -178,19 +233,19 @@ func Test_fixStoke(t *testing.T) {
 	//}
 }
 
-func Test_ps_2_draw2d(t *testing.T) {
-	is := is.New(t)
-
-	src, err := os.OpenFile("samples/ps/Drill Drawer Drawings 1.ps", 0, 0)
-	is.NoErr(err)
-	defer src.Close()
-
-	bytes, err := ioutil.ReadAll(src)
-	reader := strings.NewReader(string(bytes))
-
-	gfxCtx := draw2dimg.NewGraphicContext()
-	interpreter := ps.NewInterpreter(gfxCtx)
-	interpreter.Execute(reader)
-	//saveToPngFile("result/TestPostscript.png", i)
-
-}
+//func Test_ps_2_draw2d(t *testing.T) {
+//	is := is.New(t)
+//
+//	src, err := os.OpenFile("samples/ps/Drill Drawer Drawings 1.ps", 0, 0)
+//	is.NoErr(err)
+//	defer src.Close()
+//
+//	bytes, err := ioutil.ReadAll(src)
+//	reader := strings.NewReader(string(bytes))
+//
+//	gfxCtx := draw2dimg.NewGraphicContext()
+//	interpreter := ps.NewInterpreter(gfxCtx)
+//	interpreter.Execute(reader)
+//	//saveToPngFile("result/TestPostscript.png", i)
+//
+//}
