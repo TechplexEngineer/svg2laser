@@ -5,7 +5,7 @@ go 1.18
 require (
 	aqwari.net/xml v0.0.0-20210331023308-d9421b293817
 	github.com/gorilla/mux v1.8.0
-	github.com/magefile/mage v1.13.0
+	github.com/joho/godotenv v1.4.0
 	github.com/matryer/is v1.4.0
 )
 

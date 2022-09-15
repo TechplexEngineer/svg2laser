@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,12 +24,19 @@ import (
 import (
 	"aqwari.net/xml/xmltree"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 //go:embed index.html
 var indexTemplate string
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Error unable to load .env file - %s", err)
+		os.Exit(1)
+	}
+
 	serve := flag.Bool("serve", false, "enable rest api and web server. If specified f and o flags are ignored")
 	port := flag.Int("port", 8080, "port to listen on. Only used if serve flag is passed")
 	inFile := flag.String("f", "", "input svg file to convert to pdf for laser")
@@ -35,9 +45,66 @@ func main() {
 
 	if *serve {
 		r := mux.NewRouter()
+
+		tmpl, err := template.New("").Parse(indexTemplate)
+		if err != nil {
+			log.Printf("Error parsing index template - %s", err)
+			os.Exit(1)
+		}
+
+		clientId := os.Getenv("CLIENT_ID")
+		if len(clientId) <= 0 {
+			log.Printf("Error CLIENT_ID env var is not set")
+			os.Exit(1)
+		}
+		redirectUri := os.Getenv("REDIRECT_URI")
+		if len(redirectUri) <= 0 {
+			log.Printf("Error REDIRECT_URI env var is not set")
+			os.Exit(1)
+		}
+
 		r.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-			fmt.Fprintf(writer, indexTemplate)
+
+			stateObj := map[string]string{
+				"did":   request.FormValue("did"),
+				"wvm":   request.FormValue("wvm"),
+				"wvmid": request.FormValue("wvmid"),
+				"eid":   request.FormValue("eid"),
+			}
+			stateStr, err := json.Marshal(stateObj)
+			if err != nil {
+				log.Printf("Error marshaling state object - %s", err)
+				os.Exit(1)
+			}
+
+			//https://onshape-public.github.io/docs/oauth/
+			onshapeAuthURL, err := url.Parse("https://oauth.onshape.com/oauth/authorize?response_type=code")
+			if err != nil {
+				log.Printf("Error unable to parse url - %s", err)
+				os.Exit(1)
+			}
+			q := onshapeAuthURL.Query()
+			q.Set("client_id", clientId)
+			q.Set("redirect_uri", redirectUri)
+			_ = stateStr
+			//q.Set("state", string(stateStr))
+
+			// include the company id so user's don't have to select if they are part of multiple companies
+			if len(request.FormValue("company_id")) > 0 {
+				q.Set("company_id", request.FormValue("company_id"))
+			}
+			onshapeAuthURL.RawQuery = q.Encode()
+
+			data := map[string]any{
+				"isOnshape":      len(request.FormValue("did")) > 0,
+				"OnshapeAuthURL": onshapeAuthURL,
+			}
+			if err = tmpl.Execute(writer, data); err != nil {
+				log.Printf("Error executing index template - %s", err)
+			}
+
 		}).Methods(http.MethodGet)
+
 		r.HandleFunc("/upload", func(w http.ResponseWriter, request *http.Request) {
 			err := request.ParseMultipartForm(5 * 1024 * 1024) //5MB = 5 * 1024 * 1024
 			if err != nil {
@@ -80,7 +147,28 @@ func main() {
 
 		}).Methods(http.MethodPost)
 
-		err := http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
+		r.HandleFunc("/oauthredirect", func(writer http.ResponseWriter, request *http.Request) {
+
+			if len(request.FormValue("error_code")) > 0 {
+				u, _ := url.Parse(redirectUri) //@todo should add in the original src parameters
+				http.Redirect(writer, request, u.Host, http.StatusSeeOther)
+				return
+			}
+
+			code := request.FormValue("code")
+			_ = code //@todo https://onshape-public.github.io/docs/oauth/#exchanging-the-code-for-a-token
+
+			data := map[string]any{
+				"isOnshape":      true,
+				"OnshapeAuthURL": "",
+			}
+			if err = tmpl.Execute(writer, data); err != nil {
+				log.Printf("Error executing index template - %s", err)
+			}
+
+		}).Methods(http.MethodGet)
+
+		err = http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			os.Exit(1)

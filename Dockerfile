@@ -13,7 +13,7 @@ ENV CGO_ENABLED=0
 
 WORKDIR /src
 
-COPY *.go go.mod go.sum *.html .
+COPY *.go go.mod go.sum *.html ./
 
 # Static build required so that we can safely copy the binary over.
 # `-tags timetzdata` embeds zone info from the "time/tzdata" package.
